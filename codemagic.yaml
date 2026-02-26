@@ -1,0 +1,93 @@
+# Codemagic CI/CD - Traka Flutter iOS Build
+# Dokumentasi: https://docs.codemagic.io/flutter-configuration/flutter-projects
+#
+# SETUP SEBELUM BUILD IPA:
+# 1. Apple Developer Account ($99/tahun)
+# 2. Di Codemagic: Team settings → Code signing identities
+#    - Upload iOS Distribution certificate (.p12)
+#    - Upload Provisioning Profile (.mobileprovision) untuk com.example.traka
+# 3. Atau gunakan App Store Connect API key untuk auto code signing
+#
+# Untuk TestFlight: distribution_type: app_store
+# Untuk Ad-hoc (install langsung ke device): distribution_type: ad_hoc
+
+workflows:
+  # Workflow ini hanya verifikasi build (tanpa code signing)
+  # Gunakan untuk cek apakah project bisa compile
+  traka-ios-verify:
+    name: Traka iOS Verify
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Get Flutter packages
+        script: flutter pub get
+      - name: Install CocoaPods
+        script: find . -name "Podfile" -execdir pod install \;
+      - name: Build iOS (no codesign)
+        script: flutter build ios --release --no-codesign
+    artifacts:
+      - build/ios/iphoneos/Runner.app/
+
+  # Workflow untuk build IPA (perlu code signing)
+  traka-ios:
+    name: Traka iOS
+    max_build_duration: 120
+    instance_type: mac_mini_m2
+
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      # Uncomment dan isi setelah setup code signing di Codemagic UI:
+      # ios_signing:
+      #   distribution_type: app_store  # atau: ad_hoc untuk install langsung
+      #   bundle_identifier: com.example.traka
+
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+        - pattern: master
+          include: true
+
+    scripts:
+      - name: Get Flutter packages
+        script: |
+          flutter pub get
+
+      - name: Install CocoaPods
+        script: |
+          find . -name "Podfile" -execdir pod install \;
+
+      # Uncomment setelah code signing di-setup di Codemagic:
+      # - name: Set up code signing
+      #   script: |
+      #     xcode-project use-profiles
+
+      - name: Build iOS IPA
+        script: |
+          flutter build ipa --release \
+            --build-name=1.0.5 \
+            --build-number=$PROJECT_BUILD_NUMBER
+          # Jika code signing sudah aktif, tambahkan:
+          # --export-options-plist=/Users/builder/export_options.plist
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - build/ios/ipa/*.xcarchive
+      - /tmp/xcodebuild_logs/*.log
+
+    # Uncomment dan ganti email setelah setup:
+    # publishing:
+    #   email:
+    #     recipients:
+    #       - email-anda@example.com
+    #     notify:
+    #       success: true
+    #       failure: true

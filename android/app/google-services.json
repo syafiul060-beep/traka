@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "652861002574",
+    "project_id": "syafiul-traka",
+    "storage_bucket": "syafiul-traka.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:652861002574:android:01af2236f206639950041f",
+        "android_client_info": {
+          "package_name": "id.traka.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDp42LNETICub57MCtws_VJwZVti49DzoM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

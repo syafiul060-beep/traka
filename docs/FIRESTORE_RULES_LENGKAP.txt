@@ -1,0 +1,202 @@
+// Copy dari baris "rules_version" sampai tutup "}" terakhir, paste di Firebase Console > Firestore > Rules
+// Deploy via CLI: firebase deploy --only firestore:rules
+//
+// PENTING: Set user sebagai admin di Firestore: users/{uid} tambah field role = "admin"
+//
+// Dokumen ini sudah diverifikasi dengan aplikasi Traka (semua collection tercakup).
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper: cek apakah user login adalah admin
+    function isAdmin() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Collection users: data profil (penumpang & driver, termasuk region/latitude/longitude)
+    // suspendedAt, suspendedReason: untuk blokir user (admin only). App cek saat login.
+    // Baca: untuk validasi email/telepon terdaftar, cek duplikat SIM/phone, ambil role saat login
+    // Tulis: user sendiri atau admin (untuk edit user dari panel admin, termasuk blokir)
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && (request.auth.uid == userId || isAdmin());
+    }
+
+    // Collection verification_codes: kode verifikasi email
+    match /verification_codes/{email} {
+      allow create, read, delete: if true;
+      allow update: if false;
+    }
+
+    // device_accounts – baca diperbolehkan agar app bisa cek "perangkat sudah punya akun" saat buka daftar
+    match /device_accounts/{deviceId} {
+      allow read: if true;
+      allow create, update: if request.auth != null;
+      allow delete: if false;
+    }
+
+    // device_rate_limit – dicatat saat login gagal (user belum auth)
+    match /device_rate_limit/{deviceId} {
+      allow read, write: if true;
+    }
+
+    // driver_status – status dan lokasi driver yang sedang aktif (siap kerja dengan rute)
+    match /driver_status/{driverId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == driverId;
+    }
+
+    // driver_schedules – jadwal keberangkatan driver (tujuan awal/akhir, jam, tanggal)
+    // Baca: semua user login (penumpang butuh lihat jadwal tersedia). Tulis: hanya pemilik doc.
+    match /driver_schedules/{driverId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == driverId;
+    }
+
+    // trips – riwayat perjalanan driver (rute yang sudah selesai)
+    match /trips/{tripId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.driverUid == request.auth.uid;
+      allow update, delete: if request.auth != null;
+    }
+
+    // route_sessions – sesi rute perjalanan driver (untuk Riwayat Rute di Data Order)
+    // Disimpan saat driver klik Berhenti Kerja / Selesai Bekerja.
+    match /route_sessions/{sessionId} {
+      allow read: if request.auth != null && resource.data.driverUid == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.driverUid == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.driverUid == request.auth.uid;
+    }
+
+    // orders – pesanan penumpang (nomor pesanan unik, riwayat travel)
+    // Update/delete: driver, penumpang, atau admin (untuk batalkan pesanan jika perlu)
+    match /orders/{orderId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null
+        && (resource.data.driverUid == request.auth.uid
+            || resource.data.passengerUid == request.auth.uid
+            || isAdmin());
+      // Subcollection messages: peserta order atau admin
+      match /messages/{messageId} {
+        allow read, create, update: if request.auth != null
+          && (get(/databases/$(database)/documents/orders/$(orderId)).data.passengerUid == request.auth.uid
+              || get(/databases/$(database)/documents/orders/$(orderId)).data.driverUid == request.auth.uid
+              || isAdmin());
+        allow delete: if request.auth != null
+          && (get(/databases/$(database)/documents/orders/$(orderId)).data.passengerUid == request.auth.uid
+              || get(/databases/$(database)/documents/orders/$(orderId)).data.driverUid == request.auth.uid
+              || isAdmin());
+      }
+    }
+
+    // counters – untuk generator nomor pesanan (order_number) dan nomor rute perjalanan (route_journey_number)
+    match /counters/{counterId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // vehicles – data kendaraan driver (nomor plat, merek, type, jumlah penumpang)
+    match /vehicles/{vehicleId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.driverUid == request.auth.uid;
+      allow update, delete: if request.auth != null
+        && resource.data.driverUid == request.auth.uid;
+    }
+
+    // vehicle_brands – data merek dan type mobil (bisa diupdate oleh admin)
+    match /vehicle_brands/{brandId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    // driver_transfers – oper penumpang dari driver pertama ke driver kedua
+    match /driver_transfers/{transferId} {
+      allow read: if request.auth != null
+        && (resource.data.fromDriverUid == request.auth.uid || resource.data.toDriverUid == request.auth.uid);
+      allow create: if request.auth != null
+        && request.resource.data.fromDriverUid == request.auth.uid;
+      allow update: if request.auth != null
+        && (resource.data.fromDriverUid == request.auth.uid || resource.data.toDriverUid == request.auth.uid);
+      allow delete: if request.auth != null
+        && (resource.data.fromDriverUid == request.auth.uid || resource.data.toDriverUid == request.auth.uid);
+    }
+
+    // app_config – konfigurasi aplikasi (tarif, kontak admin). Baca: user login. Tulis: admin.
+    match /app_config/{docId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // vehicle_data – data kendaraan per driver (fallback kapasitas). Penumpang baca saat cari driver.
+    match /vehicle_data/{driverId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == driverId;
+    }
+
+    // violation_records – pelanggaran (tidak scan barcode). Dibuat oleh app saat konfirmasi otomatis.
+    // User baca record sendiri (untuk Riwayat Pembayaran). Admin baca semua. Cloud Function update paidAt (bypass rules).
+    match /violation_records/{recordId} {
+      allow read: if request.auth != null
+        && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // voice_calls – panggilan suara in-app (signaling WebRTC)
+    // Hanya caller/callee (penumpang atau driver order) boleh baca/tulis
+    match /voice_calls/{orderId} {
+      allow read, write: if request.auth != null
+        && (resource == null
+            || resource.data.callerUid == request.auth.uid
+            || resource.data.calleeUid == request.auth.uid
+            || request.resource.data.callerUid == request.auth.uid
+            || request.resource.data.calleeUid == request.auth.uid);
+      match /ice/{candidateId} {
+        allow read, write: if request.auth != null;
+      }
+    }
+
+    // sos_events – log SOS/darurat (penumpang atau driver). User create untuk diri sendiri. Admin baca semua.
+    match /sos_events/{eventId} {
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid;
+      allow read: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    // admin_chats – chat user dengan admin (1:1 per user)
+    // Status: bot | in_queue | connected | closed. User: akses chat sendiri. Admin: akses semua.
+    match /admin_chats/{userId} {
+      allow read, write: if request.auth != null
+        && (request.auth.uid == userId || isAdmin());
+      match /messages/{messageId} {
+        allow read, write: if request.auth != null
+          && (request.auth.uid == userId || isAdmin());
+      }
+    }
+
+    // admin_status – status admin (online/offline/busy) untuk live chat support
+    // Baca: user login perlu cek admin online saat klik "Hubungi Admin"
+    // Tulis: admin (set online/offline), atau user saat sambungkan ke admin (set busy + currentChatUserId)
+    match /admin_status/{adminId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && isAdmin();
+      allow update: if request.auth != null && (
+        isAdmin()
+        || (
+          resource.data.get('status', '') == 'online'
+          && (!('currentChatUserId' in resource.data) || resource.data.currentChatUserId == null || resource.data.currentChatUserId == '')
+          && request.resource.data.get('status', '') == 'busy'
+          && request.resource.data.get('currentChatUserId', '') == request.auth.uid
+        )
+      );
+      allow delete: if request.auth != null && isAdmin();
+    }
+
+  }
+}

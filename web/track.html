@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lacak Perjalanan - Traka</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    #map { width: 100%; height: 100vh; }
+    #info {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: #fff;
+      padding: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      z-index: 1000;
+    }
+    #info h1 { font-size: 18px; margin-bottom: 8px; }
+    #info p { font-size: 14px; color: #666; }
+    #info.completed { background: #f5f5f5; }
+    #loading, #error { padding: 24px; text-align: center; }
+    #error { color: #c62828; }
+    .spinner { border: 3px solid #f3f3f3; border-top: 3px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div id="info" style="display:none;">
+    <h1>Lacak Perjalanan Traka</h1>
+    <p id="info-text"></p>
+  </div>
+  <div id="loading">
+    <div class="spinner"></div>
+    <p>Memuat...</p>
+  </div>
+  <div id="error" style="display:none;"></div>
+  <div id="map" style="display:none;"></div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyA-DAHNjx9iJF54sxd0GaYb3b0gbVkbETQ",
+      projectId: "syafiul-traka",
+      authDomain: "syafiul-traka.firebaseapp.com",
+      storageBucket: "syafiul-traka.firebasestorage.app"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('t');
+
+    if (!token) {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('error').style.display = 'block';
+      document.getElementById('error').textContent = 'Link tidak valid. Token tidak ditemukan.';
+    } else {
+      db.collection('track_share_links').doc(token).get()
+        .then(function(doc) {
+          document.getElementById('loading').style.display = 'none';
+          if (!doc.exists) {
+            document.getElementById('error').style.display = 'block';
+            document.getElementById('error').textContent = 'Link tidak valid atau sudah kadaluarsa.';
+            return;
+          }
+          const data = doc.data();
+          const status = data.status || '';
+          const orderNumber = data.orderNumber || '';
+
+          if (status === 'completed' || status === 'cancelled') {
+            document.getElementById('info').style.display = 'block';
+            document.getElementById('info').classList.add('completed');
+            document.getElementById('info-text').textContent = 'Perjalanan sudah sampai tujuan. Link ini tidak lagi aktif.';
+            document.getElementById('error').style.display = 'block';
+            document.getElementById('error').textContent = 'Link tidak berlaku setelah perjalanan selesai.';
+            document.getElementById('error').style.color = '#666';
+            return;
+          }
+
+          const driverUid = data.driverUid;
+          if (!driverUid) {
+            document.getElementById('error').style.display = 'block';
+            document.getElementById('error').textContent = 'Data driver tidak valid.';
+            return;
+          }
+
+          document.getElementById('info').style.display = 'block';
+          document.getElementById('info-text').textContent = (data.originText || 'Asal') + ' → ' + (data.destText || 'Tujuan') + (orderNumber ? ' (#' + orderNumber + ')' : '');
+          document.getElementById('map').style.display = 'block';
+
+          let map = L.map('map').setView([-6.2, 106.8], 14);
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+          }).addTo(map);
+
+          let marker = null;
+
+          db.collection('driver_status').doc(driverUid).onSnapshot(function(snap) {
+            if (!snap.exists) return;
+            const d = snap.data();
+            const lat = d.latitude;
+            const lng = d.longitude;
+            if (lat == null || lng == null) return;
+
+            const pos = [lat, lng];
+            if (!marker) {
+              marker = L.marker(pos).addTo(map);
+              map.setView(pos, 15);
+            } else {
+              marker.setLatLng(pos);
+            }
+          }, function(err) {
+            console.error(err);
+          });
+        })
+        .catch(function(err) {
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('error').style.display = 'block';
+          document.getElementById('error').textContent = 'Gagal memuat: ' + (err.message || 'Koneksi error');
+        });
+    }
+  </script>
+</body>
+</html>

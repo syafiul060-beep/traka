@@ -1,0 +1,20 @@
+{
+  "indexes": [
+    {"collectionGroup":"users","queryScope":"COLLECTION","fields":[{"fieldPath":"deviceId","order":"ASCENDING"},{"fieldPath":"role","order":"ASCENDING"}]},
+    {"collectionGroup":"orders","queryScope":"COLLECTION","fields":[{"fieldPath":"passengerUid","order":"ASCENDING"},{"fieldPath":"status","order":"ASCENDING"},{"fieldPath":"updatedAt","order":"DESCENDING"}]},
+    {"collectionGroup":"orders","queryScope":"COLLECTION","fields":[{"fieldPath":"driverUid","order":"ASCENDING"},{"fieldPath":"status","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"}]},
+    {"collectionGroup":"orders","queryScope":"COLLECTION","fields":[{"fieldPath":"driverUid","order":"ASCENDING"},{"fieldPath":"status","order":"ASCENDING"},{"fieldPath":"updatedAt","order":"DESCENDING"}]},
+    {"collectionGroup":"orders","queryScope":"COLLECTION","fields":[{"fieldPath":"routeJourneyNumber","order":"ASCENDING"},{"fieldPath":"driverUid","order":"ASCENDING"},{"fieldPath":"status","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"}]},
+    {"collectionGroup":"orders","queryScope":"COLLECTION","fields":[{"fieldPath":"status","order":"ASCENDING"},{"fieldPath":"completedAt","order":"ASCENDING"}]},
+    {"collectionGroup":"route_sessions","queryScope":"COLLECTION","fields":[{"fieldPath":"driverUid","order":"ASCENDING"},{"fieldPath":"endedAt","order":"DESCENDING"}]},
+    {"collectionGroup":"voice_calls","queryScope":"COLLECTION","fields":[{"fieldPath":"status","order":"ASCENDING"},{"fieldPath":"updatedAt","order":"ASCENDING"}]},
+    {"collectionGroup":"orders","queryScope":"COLLECTION","fields":[{"fieldPath":"passengerUid","order":"ASCENDING"},{"fieldPath":"updatedAt","order":"DESCENDING"}]},
+    {"collectionGroup":"orders","queryScope":"COLLECTION","fields":[{"fieldPath":"passengerUid","order":"ASCENDING"},{"fieldPath":"passengerTrackDriverPaidAt","order":"DESCENDING"}]},
+    {"collectionGroup":"orders","queryScope":"COLLECTION","fields":[{"fieldPath":"orderType","order":"ASCENDING"},{"fieldPath":"passengerUid","order":"ASCENDING"},{"fieldPath":"passengerLacakBarangPaidAt","order":"ASCENDING"}]},
+    {"collectionGroup":"orders","queryScope":"COLLECTION","fields":[{"fieldPath":"orderType","order":"ASCENDING"},{"fieldPath":"receiverUid","order":"ASCENDING"},{"fieldPath":"receiverLacakBarangPaidAt","order":"ASCENDING"}]},
+    {"collectionGroup":"violation_records","queryScope":"COLLECTION","fields":[{"fieldPath":"userId","order":"ASCENDING"},{"fieldPath":"type","order":"ASCENDING"}]},
+    {"collectionGroup":"admin_chats","queryScope":"COLLECTION","fields":[{"fieldPath":"status","order":"ASCENDING"},{"fieldPath":"queueJoinedAt","order":"ASCENDING"}]},
+    {"collectionGroup":"promotions","queryScope":"COLLECTION","fields":[{"fieldPath":"priority","order":"DESCENDING"},{"fieldPath":"publishedAt","order":"DESCENDING"}]}
+  ],
+  "fieldOverrides": []
+}
