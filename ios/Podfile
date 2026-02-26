@@ -1,6 +1,6 @@
 # Traka - iOS Podfile
-# Platform minimum iOS 14.0 (required by google_maps_flutter_ios)
-platform :ios, '14.0'
+# Platform minimum iOS 15.5 (required by google_mlkit_commons)
+platform :ios, '15.5'
 
 # CocoaPods analytics - disable for faster builds
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -39,7 +39,7 @@ post_install do |installer|
     flutter_additional_ios_build_settings(target)
     # Fix deployment target for Firebase & other pods
     target.build_configurations.each do |config|
-      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.5'
       config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'i386'
     end
   end

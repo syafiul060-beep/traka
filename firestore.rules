@@ -131,9 +131,9 @@ service cloud.firestore {
     }
 
     // app_config – konfigurasi aplikasi (tarif, kontak admin). Baca: user login. Tulis: admin.
-    // maintenance doc: baca oleh siapa saja (untuk cek maintenance sebelum login)
+    // maintenance & min_version: baca tanpa auth (app cek saat startup sebelum login)
     match /app_config/{docId} {
-      allow read: if request.auth != null || docId == 'maintenance';
+      allow read: if request.auth != null || docId == 'maintenance' || docId == 'min_version';
       allow write: if isAdmin();
     }
 

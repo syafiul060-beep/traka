@@ -24,6 +24,12 @@ service cloud.firestore {
       allow read: if true;
       allow write: if request.auth != null
         && (request.auth.uid == userId || isAdmin());
+      // verification_logs – audit trail verifikasi wajah (forensik)
+      match /verification_logs/{logId} {
+        allow create: if request.auth != null && request.auth.uid == userId;
+        allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+        allow update, delete: if false;
+      }
     }
 
     // Collection verification_codes: kode verifikasi email
@@ -127,8 +133,9 @@ service cloud.firestore {
     }
 
     // app_config – konfigurasi aplikasi (tarif, kontak admin). Baca: user login. Tulis: admin.
+    // maintenance & min_version: baca tanpa auth (app cek saat startup sebelum login)
     match /app_config/{docId} {
-      allow read: if request.auth != null;
+      allow read: if request.auth != null || docId == 'maintenance' || docId == 'min_version';
       allow write: if isAdmin();
     }
 
@@ -196,6 +203,28 @@ service cloud.firestore {
         )
       );
       allow delete: if request.auth != null && isAdmin();
+    }
+
+    // track_share_links – link bagikan lacak ke keluarga. Token = docId (rahasia).
+    match /track_share_links/{token} {
+      allow create: if request.auth != null
+        && request.resource.data.passengerUid == request.auth.uid;
+      allow read: if true;
+      allow update, delete: if false;
+    }
+
+    // promotions – konten promosi/iklan untuk dibaca driver dan penumpang
+    match /promotions/{promoId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // app_feedback – saran & masukan dari pengguna. Create: user login. Read: admin.
+    match /app_feedback/{feedbackId} {
+      allow create: if request.auth != null
+        && (request.resource.data.userId == request.auth.uid || isAdmin());
+      allow read: if isAdmin();
+      allow update, delete: if isAdmin();
     }
 
   }
